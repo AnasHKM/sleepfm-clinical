@@ -1,15 +1,17 @@
 #!/bin/bash
+#SBATCH --job-name=edf_to_hdf5
+#SBATCH --partition=bch-gpu
+#SBATCH --gpus=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem-per-cpu=8G
+#SBATCH --time=7-00:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=anas.hakim@childrens.harvard.edu
+#SBATCH --output=../logs/edf_to_hdf5_%j.out
 
-root_dir=/oak/stanford/groups/mignot/psg/NSRR/mesa
-target_dir=/oak/stanford/groups/jamesz/rthapa84/psg_fm/data_new_128/mesa
+source ~/.bashrc
+conda activate sleepfm_env
 
-num_threads=10
-num_files=-1
-resample_rate=128
 
-python3 preprocessing.py \
-    --root_dir $root_dir \
-    --target_dir $target_dir \
-    --num_threads $num_threads \
-    --num_files $num_files \
-    --resample_rate $resample_rate
+python preprocessing_aws.py --num_threads 10 --resample_rate 128
