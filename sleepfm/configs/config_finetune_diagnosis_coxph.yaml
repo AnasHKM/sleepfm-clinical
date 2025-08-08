@@ -35,7 +35,6 @@ labels_path: '/oak/stanford/groups/jamesz/rthapa84/psg_fm/10_14_28/diagnosis_dat
 # demo_labels_path: '/oak/stanford/groups/jamesz/rthapa84/psg_fm/10_14_28/diagnosis_data/combined_demo_stats_age_sex_race_bmi_normalized_10_14_24.csv'
 demo_labels_path: '/oak/stanford/groups/jamesz/rthapa84/psg_fm/10_14_28/diagnosis_data/combined_demo_stats_normalized_10_14_24.csv'
 
-sleep_stages: ""
 
 save_iter: 250
 eval_iter: 250

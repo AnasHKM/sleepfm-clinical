@@ -6,7 +6,7 @@ import os
 import sys
 sys.path.append("../")
 from utils import *
-from models.dataset import SetTransformerDataset, collate_fn
+from models.dataset_aws import SetTransformerDataset, collate_fn
 from models.models import SetTransformer
 import click
 import time
@@ -17,30 +17,25 @@ import tqdm
 import shutil
 import wandb
 import h5py
+from pathlib import Path
 
 
 @click.command("generate_embeddings")
-@click.option("--model_path", type=str, default='path')
-@click.option("--dataset_name", type=str, default='mesa')
+@click.option("--model_path", type=str, default='../checkpoints/SetTransformer/leave_one_out_128_patch_size_640')
+@click.option("--dataset_name", type=str, default='shhs')
 @click.option("--channel_groups_path", type=str, default='../configs/channel_groups.json')
-@click.option("--split_path", type=str, default='../configs/dataset_split.json')
-@click.option("--splits", type=str, default='train,validation,test')
 @click.option("--num_workers", type=int, default=16)
-@click.option("--batch_size", type=int, default=128)
+@click.option("--batch_size", type=int, default=32)
 def generate_embeddings(
     model_path,
     dataset_name, 
     channel_groups_path, 
-    split_path,
-    splits,
-    num_workers, 
+    num_workers,
     batch_size
 ):
     config_path = os.path.join(model_path, "config.json")
     config = load_config(config_path)
     channel_groups = load_data(channel_groups_path)
-
-    current_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     dataset_name = dataset_name.lower()
 
@@ -58,8 +53,6 @@ def generate_embeddings(
     pooling_head = config["pooling_head"]
     dropout = 0.0
 
-    data_path = config["data_path"]
-
     logger.info(f"Output Path: {output}")
     logger.info(f"Output 5 Min Agg Path: {output_5min_agg}")
     logger.info(f"modality_types: {modality_types}")
@@ -70,23 +63,10 @@ def generate_embeddings(
     logger.info(f"Device set to Cuda")
 
     start = time.time()
-    split_dataset = load_data(split_path)
-    splits = splits.split(",")
 
-    if dataset_name.lower() in ["shhs1", "shhs2"]:
-        path_to_data = os.path.join(data_path, f"SHHS/{dataset_name}")
-        hdf5_paths = [os.path.join(path_to_data, file_name) for file_name in os.listdir(path_to_data)]
-    else:
-        hdf5_paths = []
-        for split in splits:
-            filtered_files = [fp for fp in split_dataset[split] if dataset_name in fp.lower()]
-            hdf5_paths += filtered_files
-        
-        hdf5_paths = [os.path.join(data_path, file) for file in hdf5_paths]
 
-    logger.info(f"Number of files to process: {len(hdf5_paths)}")
 
-    dataset = SetTransformerDataset(config, channel_groups, hdf5_paths=hdf5_paths, split="test")
+    dataset = SetTransformerDataset(config, channel_groups, hdf5_paths=Path('/temp_work/ch266186/shhs_hdf5'))
     dataloader = torch.utils.data.DataLoader(dataset, 
                                              batch_size=batch_size, 
                                              num_workers=num_workers, 
@@ -138,7 +118,7 @@ def generate_embeddings(
                 for i in range(len(file_paths)):
                     file_path = file_paths[i]
                     chunk_start = chunk_starts[i]
-                    subject_id = os.path.basename(file_path).split('.')[0]
+                    subject_id = file_path.stem.split('-')[-1]
                     output_path = os.path.join(output_5min_agg, f"{subject_id}.hdf5")
 
                     with h5py.File(output_path, 'a') as hdf5_file:
@@ -158,7 +138,7 @@ def generate_embeddings(
                 for i in range(len(file_paths)):
                     file_path = file_paths[i]
                     chunk_start = chunk_starts[i]
-                    subject_id = os.path.basename(file_path).split('.')[0]
+                    subject_id = file_path.stem.split('-')[-1]
                     output_path = os.path.join(output, f"{subject_id}.hdf5")
 
                     with h5py.File(output_path, 'a') as hdf5_file:

@@ -6,7 +6,7 @@ import os
 import sys
 sys.path.append("../")
 from utils import *
-from models.dataset import SetTransformerDataset, collate_fn
+from models.dataset_aws import SetTransformerDataset, collate_fn
 from models.models import SetTransformer
 import click
 import time
@@ -16,7 +16,8 @@ import numpy as np
 import tqdm
 import shutil
 import wandb
-from torch.optim import AdamW
+from torch.utils.data import random_split
+
 
 
 def run_iter(batch, num_modalities, model, device, mode, temperature, batch_size, ij):
@@ -115,7 +116,7 @@ def run_iter(batch, num_modalities, model, device, mode, temperature, batch_size
 @click.option("--config_path", type=str, default='../configs/config_set_transformer_contrastive.yaml')
 @click.option("--channel_groups_path", type=str, default='../configs/channel_groups.json' )
 @click.option("--checkpoint_path", type=str, default=None)
-@click.option("--use_wandb", type=str, default=None)
+@click.option("--use_wandb", type=str, default=True)
 def pretrain(
     config_path, 
     channel_groups_path, 
@@ -161,10 +162,10 @@ def pretrain(
     model_name = config["model"]
     mode = config["mode"]
 
-    config["use_wandb"] = False
+    config["use_wandb"] = True
 
     if config["use_wandb"]:
-        wandb.init(project="PSG-fm", name=f"run_at_{current_timestamp}", config=config)
+        wandb.init(project="PSG-fm", name=f"run_at_{current_timestamp}", config=config, mode="offline")
 
     os.environ['WANDB_DIR'] = output
 
@@ -184,10 +185,17 @@ def pretrain(
     ij = sum([((i, j), (j, i)) for i in range(len(modality_types)) for j in range(i + 1, len(modality_types))], ())
 
     start = time.time()
-    # dataset_class = getattr(sys.modules[__name__], config['dataloader'])
+
+    full_ds = SetTransformerDataset(config, channel_groups)
+    train_size = int(len(full_ds) * 0.9)
+    val_size = len(full_ds) - train_size
+
+    pretrain_ds, val_ds = random_split(full_ds, [train_size, val_size],
+                                       generator=torch.Generator().manual_seed(42))
+
     dataset = {
-        split: SetTransformerDataset(config, channel_groups, split=split)
-        for split in ["pretrain", "validation"]
+        "pretrain": pretrain_ds,
+        "validation": val_ds,
     }
 
     logger.info(f"Dataset loaded in {time.time() - start:.1f} seconds")
@@ -251,7 +259,7 @@ def pretrain(
         count_iter = 1
         for epoch in range(epoch_resume, epochs):
             split = "pretrain"
-            dataloader = torch.utils.data.DataLoader(dataset[split], batch_size=batch_size, num_workers=num_workers, shuffle=True, collate_fn=collate_fn, drop_last=(split == "pretrain"))
+            dataloader = torch.utils.data.DataLoader(dataset[split], batch_size=batch_size, num_workers=num_workers, shuffle=True, collate_fn=collate_fn, drop_last=(split == "pretrain"), pin_memory=True, prefetch_factor=6)
             model.train(split == "pretrain")
             if mode == "pairwise":
                 total_loss = 0.
@@ -343,7 +351,7 @@ def pretrain(
                                 total_n_val = 0
                                 total_pairs_val = np.zeros((num_modalities, 2), dtype=int)
 
-                            dataloader_val = torch.utils.data.DataLoader(dataset["validation"], batch_size=batch_size, num_workers=4, shuffle=False, collate_fn=collate_fn)
+                            dataloader_val = torch.utils.data.DataLoader(dataset["validation"], batch_size=batch_size, num_workers=4, shuffle=False, collate_fn=collate_fn, pin_memory=True)
                             model.eval()  
                             with torch.no_grad():
                                 with tqdm.tqdm(total=len(dataloader_val)) as pbar_val:

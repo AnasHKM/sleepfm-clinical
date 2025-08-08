@@ -12,6 +12,7 @@ __pycache__/
 
 sleepfm/checkpoints
 sleepfm/pipeline/logs
+sleepfm/dataset
 
 # Distribution / packaging
 .Python
@@ -25,7 +26,7 @@ lib/
 lib64/
 parts/
 sdist/
-test/
+sleepfm/test/
 sleepfm/logs
 var/
 wheels/

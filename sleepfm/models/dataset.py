@@ -94,8 +94,6 @@ class SetTransformerDataset(Dataset):
         # Use multiprocessing to index files in parallel
         self.index_map = index_files(self.hdf5_paths, channel_like, self.samples_per_chunk, config["num_workers"], channel_groups=self.channel_groups, modality_types=config["modality_types"])
 
-        # random.shuffle(self.hdf5_paths)
-        # self.index_map = sorted(self.index_map, key=lambda x: (x[1], x[2]))
         self.total_len = len(self.index_map)
         self.modalities_length = []
         for modality_type in self.config["modality_types"]:

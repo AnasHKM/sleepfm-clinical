@@ -2,7 +2,7 @@
 seed: 42
 model: 'SetTransformer'
 in_channels: 1
-batch_size: 128
+batch_size: 8
 epochs: 2
 lr: 0.001
 lr_step_period: 2
@@ -17,7 +17,7 @@ pooling_head: 8
 dropout: 0.3
 
 # after the preprocessing step, make sure to point this to your data folder
-data_path: '/scratch/users/rthapa84/psg_fm/data/data_new_128/'
+data_path: '/temp_work/ch266186/hdf5_processed'
 split_path: '../configs/dataset_split.json'
 save_path: '../checkpoints/'
 weight_decay: 0.0
@@ -25,7 +25,7 @@ weight_decay: 0.0
 # contrastive learning objective you want. pairwise vs. leave_one_out
 mode: "leave_one_out"
 save_iter: 5000
-eval_iter: 5000
+eval_iter: 1500
 log_interval: 100
 use_wandb: false
 
